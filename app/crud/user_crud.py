@@ -1,6 +1,10 @@
 from sqlalchemy.orm import Session
 from app.models.user import User, RoleEnum
 from app.schemas.user import UserCreate
+
+from sqlalchemy.orm import Session
+from app.models.user import User
+from app.schemas.user import UserUpdate
 from app.core.security import hash_password
 
 def create_user(db: Session, user_in: UserCreate) -> User:
@@ -43,3 +47,27 @@ def get_user_by_id(db: Session, user_id: int):
 
 def list_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(User).offset(skip).limit(limit).all()
+
+
+
+def update_user(db: Session, user: User, user_in: UserUpdate) -> User:
+    if user_in.username:
+        user.username = user_in.username
+    if user_in.full_name:
+        user.full_name = user_in.full_name
+    if user_in.email:
+        user.email = user_in.email
+    if user_in.password:
+        user.hashed_password = hash_password(user_in.password)
+    if user_in.role:
+        user.role = user_in.role
+    if user_in.department_id is not None:
+        user.department_id = user_in.department_id
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+def delete_user(db: Session, user: User):
+    db.delete(user)
+    db.commit()

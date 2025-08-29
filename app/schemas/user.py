@@ -21,6 +21,17 @@ class UserOut(BaseModel):
     class Config:
         orm_mode = True
 
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[RoleEnum] = None
+    department_id: Optional[int] = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str

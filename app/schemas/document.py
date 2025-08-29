@@ -1,5 +1,14 @@
+# app/schemas/document.py
 from pydantic import BaseModel
 from typing import Optional
+
+class DocumentCreate(BaseModel):
+    title: str
+    department_id: Optional[int] = None
+
+class DocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    department_id: Optional[int] = None
 
 class DocumentOut(BaseModel):
     id: int
