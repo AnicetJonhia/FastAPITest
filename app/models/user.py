@@ -2,13 +2,12 @@ from sqlalchemy import Column, Integer, String, Enum, ForeignKey
 from app.models.base import Base
 import enum
 
-
 class RoleEnum(str, enum.Enum):
+    SUPERADMIN = "SUPERADMIN"
     RH = "RH"
     DEPT = "DEPT"
     EMPLOYEE = "EMPLOYEE"
     MANAGER = "MANAGER"
-
 
 class User(Base):
     __tablename__ = "users"

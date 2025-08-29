@@ -12,6 +12,5 @@ def create_department(db: Session, dept_in: DepartmentCreate) -> Department:
 def get_department(db: Session, dept_id: int):
     return db.query(Department).filter(Department.id == dept_id).first()
 
-
 def list_departments(db: Session, skip: int = 0, limit: int = 100):
     return db.query(Department).offset(skip).limit(limit).all()

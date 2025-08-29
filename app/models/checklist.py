@@ -4,7 +4,7 @@ from app.models.base import Base
 class ChecklistItem(Base):
     __tablename__ = "checklist_items"
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
+    title = Column(String, nullable=False)
     completed = Column(Boolean, default=False)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
