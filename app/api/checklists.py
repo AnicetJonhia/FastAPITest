@@ -1,4 +1,4 @@
-# app/api/checklists.py
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -15,7 +15,12 @@ from app.crud.checklist_crud import (
     update_checklist_item,
     delete_checklist_item,
 )
+
+
+
 from app.api.dependencies import get_current_user, require_role
+from app.crud.user_crud import get_user_by_id
+from app.services.onboarding import assign_onboarding_for_user
 
 router = APIRouter(prefix="/checklists", tags=["checklists"])
 
@@ -99,6 +104,8 @@ def update_item(item_id: int, payload: ChecklistUpdate, db: Session = Depends(ge
         raise HTTPException(status_code=500, detail="Unable to update item")
     return updated
 
+
+
 # Mark complete
 @router.post("/{item_id}/complete", response_model=ChecklistOut)
 def complete_item(item_id: int, db: Session = Depends(get_db), auth_user = Depends(get_current_user)):
@@ -121,3 +128,20 @@ def delete_item(item_id: int, db: Session = Depends(get_db), auth_user = Depends
     if not deleted:
         raise HTTPException(status_code=500, detail="Unable to delete item")
     return None
+
+
+
+
+@router.post("/assign/{user_id}", response_model=List[ChecklistOut], status_code=status.HTTP_201_CREATED)
+def assign_templates_to_user(user_id: int, db: Session = Depends(get_db), auth_user = Depends(require_role(["SUPERADMIN", "RH", "DEPT"]))):
+    # get target user
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+
+    # permission: if caller is DEPT, ensure same department
+    if getattr(auth_user, "role", None) == "DEPT" and auth_user.department_id != user.department_id:
+        raise HTTPException(status_code=403, detail="Cannot assign templates to users of other departments")
+
+    created, docs = assign_onboarding_for_user(db, user)
+    return created

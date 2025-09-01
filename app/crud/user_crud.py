@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+
 from app.models.user import User, RoleEnum
 from app.schemas.user import UserCreate
 

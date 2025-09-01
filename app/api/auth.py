@@ -8,6 +8,8 @@ from app.core.security import verify_password, create_access_token
 from app.crud.user_crud import get_user_by_email
 from app.schemas.user import Token
 from app.models.user import User
+from app.api.dependencies import get_current_user
+from app.schemas.user import UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -40,9 +42,7 @@ def login_for_access_token(
     return {"access_token": token, "token_type": "bearer"}
 
 
-# Optional endpoint: get own profile
-from app.api.dependencies import get_current_user
-from app.schemas.user import UserOut
+
 
 @router.get("/me", response_model=UserOut)
 def read_me(current_user = Depends(get_current_user)):
