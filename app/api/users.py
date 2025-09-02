@@ -81,12 +81,22 @@ def update_user_route(
         pass
     elif auth_user.role in ("MANAGER", "DEPT") and user.department_id == auth_user.department_id:
         pass  # limité à leur département
-    elif auth_user.id == user.id:
-        pass
+
     else:
         raise HTTPException(status_code=403, detail="Not allowed to update this user")
 
-    return update_user(db, user, user_in)
+    # 🔹 Conserver le department_id avant mise à jour
+    old_department_id = user.department_id
+
+    # Mise à jour du user
+    updated_user = update_user(db, user, user_in)
+
+    # 🔄 Réassigner l'onboarding uniquement si le department_id a changé
+    if old_department_id != updated_user.department_id:
+        items , docs = assign_onboarding_for_user(db, updated_user)
+
+    return updated_user
+
 
 
 # ✅ DELETE (seulement SUPERADMIN)

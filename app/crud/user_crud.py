@@ -61,8 +61,16 @@ def update_user(db: Session, user: User, user_in: UserUpdate) -> User:
         user.hashed_password = hash_password(user_in.password)
     if user_in.role:
         user.role = user_in.role
+
+    # Gestion du department_id
     if user_in.department_id is not None:
-        user.department_id = user_in.department_id
+        # Vérifier si le département existe
+        from app.crud.department_crud import get_department
+        dept = get_department(db, user_in.department_id)
+        if dept:
+            user.department_id = dept.id
+        else:
+            user.department_id = None
 
     db.commit()
     db.refresh(user)
