@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr
 from typing import Optional
 from app.models.user import RoleEnum
 
@@ -39,3 +39,11 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     sub: Optional[str] = None  # email
     role: Optional[str] = None
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: constr(min_length=6)
+    confirm_password: constr(min_length=6)

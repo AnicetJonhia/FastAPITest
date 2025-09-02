@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.db.session import engine, SessionLocal
 from app.models.base import Base
 from app.api import auth, users, departments, documents, checklists
-from app.core.config import ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_USERNAME
+from app.core.config import settings
 from app.crud.user_crud import create_superadmin, get_user_by_email
 
 # create tables
@@ -24,15 +24,15 @@ include_routers_with_prefix(app, routers)
 @app.on_event("startup")
 def startup_event():
     # Bootstrap superadmin if env vars set and not exist
-    if ADMIN_EMAIL and ADMIN_PASSWORD:
+    if settings.ADMIN_EMAIL and settings.ADMIN_PASSWORD:
         db = SessionLocal()
         try:
-            existing = get_user_by_email(db, ADMIN_EMAIL)
+            existing = get_user_by_email(db, settings.ADMIN_EMAIL)
             if not existing:
-                create_superadmin(db, email=ADMIN_EMAIL, password=ADMIN_PASSWORD, username=ADMIN_USERNAME)
-                print("SuperAdmin created:", ADMIN_EMAIL)
+                create_superadmin(db, email=settings.ADMIN_EMAIL, password=settings.ADMIN_PASSWORD, username=settings.ADMIN_USERNAME)
+                print("SuperAdmin created:", settings.ADMIN_EMAIL)
             else:
-                print("SuperAdmin exists:", ADMIN_EMAIL)
+                print("SuperAdmin exists:", settings.ADMIN_EMAIL)
         finally:
             db.close()
 

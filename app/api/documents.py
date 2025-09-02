@@ -18,7 +18,9 @@ from app.crud.document_crud import (
 from app.schemas.document import DocumentOut, DocumentUpdate
 from app.api.dependencies import require_role, get_current_user
 from app.services.file_storage import save_upload_file
-from app.core.config import STORAGE_DIR
+from app.core.config import settings
+
+STORAGE_DIR =  settings.STORAGE_DIR
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 

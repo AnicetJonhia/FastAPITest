@@ -18,3 +18,4 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(RoleEnum), nullable=False)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+

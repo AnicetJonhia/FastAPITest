@@ -1,8 +1,9 @@
 import os
 import uuid
 from fastapi import UploadFile
-from app.core.config import STORAGE_DIR
+from app.core.config import settings
 
+STORAGE_DIR =  settings.STORAGE_DIR
 def save_upload_file(upload_file: UploadFile, subfolder: str = "") -> (str, str):
     """
     Save UploadFile to STORAGE_DIR[/subfolder] and return (stored_filename, path)
