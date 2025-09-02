@@ -23,14 +23,12 @@ from app.schemas.user import (
     ResetPasswordRequest
 )
 
+from app.core.config import settings
+
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES or 1440
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
-
-
 
 # LOGIN / GET TOKEN
 @router.post("/token", response_model=Token)
@@ -53,7 +51,8 @@ def login_for_access_token(
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
-        {"sub": str(user.id), "role": user.role},
+        user_id=user.id,  # passer l'ID de l'utilisateur
+        role=user.role,  # passer le rôle
         expires_delta=access_token_expires
     )
     return {"access_token": token, "token_type": "bearer"}

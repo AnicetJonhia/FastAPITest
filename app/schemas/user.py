@@ -36,9 +36,13 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+
+
 class TokenPayload(BaseModel):
-    sub: Optional[str] = None  # email
+    sub: Optional[str] = None
     role: Optional[str] = None
+    exp: Optional[int] = None
+
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
