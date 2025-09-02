@@ -69,6 +69,10 @@ def list_items(
         if not target_user:
             raise HTTPException(status_code=404, detail="Target user not found")
 
+        # si department_id aussi fourni → cohérence
+        if department_id is not None and target_user.department_id != department_id:
+            raise HTTPException(status_code=400, detail="User does not belong to given department")
+
         # droits : owner, SUPERADMIN, RH, DEPT(manager du même dept)
         if auth_user.id == user_id:
             return list_checklist_items_for_user(db, user_id)
@@ -90,6 +94,10 @@ def list_items(
     # listing global
     if auth_user.role in ("SUPERADMIN", "RH"):
         return list_all_checklist_items(db, skip=skip, limit=limit)
+
+    # sinon, si pas de dept fourni → checklist du propre département du manager
+    if auth_user.role in ("DEPT", "MANAGER") and auth_user.department_id:
+        return list_department_template(db, auth_user.department_id)
 
     raise HTTPException(status_code=403, detail="Not allowed to list all checklists")
 
@@ -123,7 +131,12 @@ def get_item(item_id: int, db: Session = Depends(get_db), auth_user=Depends(get_
 
 # Update item
 @router.put("/{item_id}", response_model=ChecklistOut)
-def update_item(item_id: int, payload: ChecklistUpdate, db: Session = Depends(get_db), auth_user=Depends(get_current_user)):
+def update_item(
+    item_id: int,
+    payload: ChecklistUpdate,
+    db: Session = Depends(get_db),
+    auth_user=Depends(get_current_user)
+):
     item = get_checklist_item(db, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -131,20 +144,27 @@ def update_item(item_id: int, payload: ChecklistUpdate, db: Session = Depends(ge
     target_user = get_user_by_id(db, item.user_id) if item.user_id else None
 
     allowed = False
+
+    # Admin / RH : accès total
     if auth_user.role in ("SUPERADMIN", "RH"):
         allowed = True
-    if auth_user.role in ("DEPT", "MANAGER") and target_user and auth_user.department_id == target_user.department_id:
-        allowed = True
-    if auth_user.id == item.user_id:
-        allowed = True
+
+    # Manager / Dept : accès si même département
+    if auth_user.role in ("DEPT", "MANAGER"):
+        if target_user and auth_user.department_id == target_user.department_id:
+            allowed = True
+        elif item.department_id and auth_user.department_id == item.department_id:
+            allowed = True
 
     if not allowed:
         raise HTTPException(status_code=403, detail="Not allowed to update this item")
 
-    updated = update_checklist_item(db, item_id, payload.dict())
+    updated = update_checklist_item(db, item_id, payload.dict(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=500, detail="Unable to update item")
+
     return updated
+
 
 
 # Mark complete
@@ -162,7 +182,7 @@ def complete_item(item_id: int, db: Session = Depends(get_db), auth_user=Depends
     if auth_user.role in ("SUPERADMIN", "RH"):
         return mark_item_completed(db, item_id)
 
-    if auth_user.role == "MANAGER" and target_user and auth_user.department_id == target_user.department_id:
+    if auth_user.role in ("DEPT", "MANAGER")  and target_user and auth_user.department_id == target_user.department_id:
         return mark_item_completed(db, item_id)
 
     raise HTTPException(status_code=403, detail="Not allowed to complete this item")
@@ -170,15 +190,31 @@ def complete_item(item_id: int, db: Session = Depends(get_db), auth_user=Depends
 
 # Delete item
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(item_id: int, db: Session = Depends(get_db), auth_user=Depends(require_role(["SUPERADMIN", "RH"]))):
+def delete_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    auth_user=Depends(get_current_user),
+):
     item = get_checklist_item(db, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    target_user = get_user_by_id(db, item.user_id) if item.user_id else None
+
+    allowed = False
+    if auth_user.role in ("SUPERADMIN", "RH"):
+        allowed = True
+    elif auth_user.role in ("DEPT", "MANAGER") and target_user and auth_user.department_id == target_user.department_id:
+        allowed = True
+
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Not allowed to delete this item")
 
     deleted = delete_checklist_item(db, item_id)
     if not deleted:
         raise HTTPException(status_code=500, detail="Unable to delete item")
     return None
+
 
 
 # Assign templates to a user

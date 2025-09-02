@@ -45,18 +45,16 @@ def update_checklist_item(db: Session, item_id: int, payload: dict) -> Optional[
     item = get_checklist_item(db, item_id)
     if not item:
         return None
-    # apply allowed updates
-    if 'title' in payload and payload['title'] is not None:
-        item.title = payload['title']
-    if 'completed' in payload and payload['completed'] is not None:
-        item.completed = payload['completed']
-    if 'department_id' in payload:
-        item.department_id = payload['department_id']
-    if 'user_id' in payload:
-        item.user_id = payload['user_id']
+
+    # applique uniquement les champs envoyés
+    for field, value in payload.items():
+        if value is not None:  # ne change que si une valeur est donnée
+            setattr(item, field, value)
+
     db.commit()
     db.refresh(item)
     return item
+
 
 def delete_checklist_item(db: Session, item_id: int) -> Optional[ChecklistItem]:
     item = get_checklist_item(db, item_id)

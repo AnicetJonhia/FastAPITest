@@ -23,6 +23,9 @@ from app.core.config import STORAGE_DIR
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
+
+
+
 @router.post("/", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 def upload_document(
     title: str,
@@ -35,22 +38,30 @@ def upload_document(
     Upload a file and create a document record.
     - SUPERADMIN / RH: can upload for any department (or global if department_id=None)
     - DEPT: can only upload documents for their own department
+    - If non-admin (DEPT) uploads without department_id, it is forced to their own department
     """
-    # DEPTs can only create for their own department
-    if getattr(auth_user, "role", None) == "DEPT":
-        if department_id is None or auth_user.department_id != department_id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                detail="Department admins can only upload files to their own department")
+    user_role = getattr(auth_user, "role", None)
+
+    if user_role == "DEPT":
+        # si pas d'ID, on force celui du département du user
+        if department_id is None:
+            department_id = auth_user.department_id
+        elif department_id != auth_user.department_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Department admins can only upload files to their own department",
+            )
 
     # Save file to disk
     try:
         stored_name, path = save_upload_file(file)
     except Exception as exc:
-        # possible I/O error
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to save uploaded file: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save uploaded file: {exc}"
+        )
 
-    # create DB record — if DB fails, remove file to avoid orphan files
+    # Create DB record
     try:
         doc = create_document_record(
             db=db,
@@ -60,18 +71,19 @@ def upload_document(
             content_type=file.content_type,
             path=path,
             uploaded_by=auth_user.id,
-            department_id=department_id
+            department_id=department_id,
         )
         return doc
     except Exception as exc:
-        # cleanup saved file
         try:
             if os.path.exists(path):
                 os.remove(path)
         except Exception:
             pass
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to create document record: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create document record: {exc}"
+        )
 
 
 @router.get("/", response_model=List[DocumentOut])
@@ -178,19 +190,33 @@ def update_doc_metadata(
     return updated
 
 
+
+
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_doc(
     doc_id: int,
     db: Session = Depends(get_db),
-    auth_user = Depends(require_role(["SUPERADMIN", "RH"])),
+    auth_user = Depends(get_current_user),  # on gère la logique dans la route
 ):
     """
     Delete document (metadata + file).
-    Only SUPERADMIN and RH allowed (by default).
+    - SUPERADMIN & RH: can delete any document
+    - Department user: can delete only docs of their department
     """
     doc = get_document(db, doc_id)
     if not doc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    # check role & department restriction
+    if auth_user.role not in ["SUPERADMIN", "RH"]:
+        if doc.department_id != auth_user.department_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not allowed to delete documents of another department"
+            )
 
     # remove file from disk first (best-effort)
     try:
@@ -202,6 +228,9 @@ def delete_doc(
 
     deleted = delete_document_record(db, doc_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete document")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to delete document"
+        )
 
     return None
