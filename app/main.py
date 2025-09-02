@@ -8,14 +8,18 @@ from app.crud.user_crud import create_superadmin, get_user_by_email
 # create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="HelloFmap - Onboarding Platform (MVP)")
 
-# include routers
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(departments.router)
-app.include_router(documents.router)
-app.include_router(checklists.router)
+
+
+def include_routers_with_prefix(app: FastAPI, routers: list, prefix: str = "/api"):
+    for router in routers:
+        app.include_router(router, prefix=prefix)
+
+
+app = FastAPI(title="HelloFmap - Onboarding Platform (MVP)")
+routers = [auth.router, users.router, departments.router, documents.router, checklists.router]
+
+include_routers_with_prefix(app, routers)
 
 @app.on_event("startup")
 def startup_event():

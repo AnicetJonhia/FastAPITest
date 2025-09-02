@@ -1,4 +1,4 @@
-# app/api/checklists.py
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -21,37 +21,54 @@ from app.services.onboarding import assign_onboarding_for_user
 
 router = APIRouter(prefix="/checklists", tags=["checklists"])
 
-
-# Create checklist item (assign to user or template if user_id is None)
+# Créer un item pour un utilisateur
 @router.post("/", response_model=ChecklistOut, status_code=status.HTTP_201_CREATED)
 def create_item(
     item_in: ChecklistCreate,
     db: Session = Depends(get_db),
     auth_user=Depends(require_role(["SUPERADMIN", "RH", "DEPT", "MANAGER"])),
 ):
-    if item_in.user_id:
-        target_user = get_user_by_id(db, item_in.user_id)
-        if not target_user:
-            raise HTTPException(status_code=404, detail="Target user not found")
+    if not item_in.user_id:
+        raise HTTPException(status_code=400, detail="user_id is required for checklist item")
 
-        # DEPT/MANAGER => doivent appartenir au même département
-        if auth_user.role in ("DEPT", "MANAGER") and auth_user.department_id != target_user.department_id:
-            raise HTTPException(status_code=403, detail="Not allowed to assign to another department")
+    target_user = get_user_by_id(db, item_in.user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+
+    # DEPT et MANAGER doivent appartenir à un département
+    if auth_user.role in ("DEPT", "MANAGER"):
+        if not auth_user.department_id:
+            raise HTTPException(status_code=403, detail="You must belong to a department to create checklist items")
+        # Ne peuvent assigner qu’à un user du même département
+        if target_user.department_id != auth_user.department_id:
+            raise HTTPException(status_code=403, detail="Cannot assign checklist to a user from another department")
+        # Forcer department_id = celui du DEPT / MANAGER
+        item_in.department_id = auth_user.department_id
 
     item = create_checklist_item(db, item_in)
     return item
 
 
-# Create template (user_id must be None)
+# Créer un template
 @router.post("/template", response_model=ChecklistOut, status_code=status.HTTP_201_CREATED)
 def create_template(
     item_in: ChecklistCreate,
     db: Session = Depends(get_db),
-    auth_user=Depends(require_role(["SUPERADMIN", "RH", "DEPT"])),
+    auth_user=Depends(require_role(["SUPERADMIN", "RH", "DEPT"])),  # MANAGER exclu
 ):
     if item_in.user_id is not None:
         raise HTTPException(status_code=400, detail="Template must not have user_id")
+
+    if auth_user.role == "DEPT":
+        if not auth_user.department_id:
+            raise HTTPException(status_code=403, detail="You must belong to a department to create templates")
+        # Forcer department_id = celui du DEPT
+        item_in.department_id = auth_user.department_id
+
     return create_checklist_item(db, item_in)
+
+
+
 
 
 # List items
