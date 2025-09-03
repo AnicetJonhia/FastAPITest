@@ -8,7 +8,8 @@ from fastapi_mail import ConnectionConfig
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+TEMPLATE_DIR = BASE_DIR / "templates" / "emails"
+TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
 class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/hellofmap.db")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change_this_secret_for_dev_only")
@@ -32,6 +33,10 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", None)
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "no-reply@example.com")
 
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
     @property
     def mail_conf(self) -> ConnectionConfig:
         template_path = Path(BASE_DIR) / "templates" / "emails"
@@ -49,7 +54,7 @@ class Settings(BaseSettings):
             MAIL_TLS=self.SMTP_TLS,
             MAIL_SSL=not self.SMTP_TLS,
             USE_CREDENTIALS=use_credentials,
-            TEMPLATE_FOLDER=str(template_path)
+            TEMPLATE_FOLDER=str(TEMPLATE_DIR),
         )
 
     class Config:
@@ -61,4 +66,4 @@ settings = Settings()
 
 # S'assurer que le dossier de stockage existe
 os.makedirs(settings.STORAGE_DIR, exist_ok=True)
-os.makedirs(settings.mail_conf.TEMPLATE_FOLDER, exist_ok=True)
+
