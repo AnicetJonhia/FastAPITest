@@ -67,7 +67,6 @@ docker-compose.override.yml
 
 # ---- VSCode settings ----
 *.code-workspace
-
-
+*.db
 
 storage/
